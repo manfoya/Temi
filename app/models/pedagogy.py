@@ -13,41 +13,43 @@ class EvalType(str, enum.Enum):
 class UE(Base):
     __tablename__ = "ues"
     id = Column(Integer, primary_key=True, index=True)
-    filiere_id = Column(Integer, ForeignKey("filieres.id"))
-    code = Column(String, unique=True, index=True) 
-    name = Column(String)
-    credits = Column(Float)
+    classe_id = Column(Integer, ForeignKey("classes.id")) # Lié à la CLASSE (L3-STAT)
     
-    filiere = relationship("Filiere")
+    code = Column(String, index=True) # ex: UE-MATH
+    name = Column(String)
+    # Les crédits de l'UE sont la somme, mais on peut garder ce champ pour l'affichage
+    credits = Column(Float, default=0.0) 
+    
+    # IMPORTANT : Il faut faire un import différé pour éviter les boucles
+    classe = relationship("app.models.academic.Classe", back_populates="ues")
     ecues = relationship("ECUE", back_populates="ue")
 
 class ECUE(Base):
     __tablename__ = "ecues"
     id = Column(Integer, primary_key=True, index=True)
     ue_id = Column(Integer, ForeignKey("ues.id"))
+    
+    code = Column(String, index=True) # ex: STAT301 (Important pour le mapping IA plus tard)
     name = Column(String)
-    coefficient = Column(Float) # Coeff dans l'UE
-    competence_tag = Column(String, nullable=True) 
+    
+    # L'ECUE a des crédits
+    credits = Column(Float, default=0.0) 
+    coefficient = Column(Float, default=1.0) # Poids dans la moyenne
 
-    # --- LOGIQUE ENSPD : Configuration des pondérations ---
-    # L'admin définit ici : Devoirs=20%, Exam=80%. (La somme doit faire 1.0)
+    # Configur Pondération (Système ENSPD)
     weight_devoir = Column(Float, default=0.0) 
     weight_tp = Column(Float, default=0.0)
-    weight_examen = Column(Float, default=1.0) # Par défaut 100% Exam
-    weight_projet = Column(Float, default=0.0)
+    weight_examen = Column(Float, default=1.0)
 
     ue = relationship("UE", back_populates="ecues")
     evaluations = relationship("Evaluation", back_populates="ecue")
 
 class Evaluation(Base):
-    """
-    Si tu on a 3 Devoirs, le système fera (D1+D2+D3)/3 * weight_devoir
-    """
     __tablename__ = "evaluations"
     id = Column(Integer, primary_key=True, index=True)
     ecue_id = Column(Integer, ForeignKey("ecues.id"))
     
-    name = Column(String) # ex: "Devoir Surprise 1"
-    type = Column(String) # DEVOIR, TP, EXAMEN...
+    name = Column(String)
+    type = Column(String) # DEVOIR, EXAMEN...
     
     ecue = relationship("ECUE", back_populates="evaluations")

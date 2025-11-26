@@ -3,19 +3,33 @@ from pydantic import BaseModel
 from typing import List, Optional
 from app.models.pedagogy import EvalType
 
-# FILIÈRE
+#  1. FILIÈRE (Le Domaine)
 class FiliereCreate(BaseModel):
-    name: str 
-    code: str 
+    name: str  # ex: "Statistique Appliquée"
+    code: str  # ex: "STAT"
+
 class FiliereResponse(FiliereCreate):
     id: int
     class Config:
         from_attributes = True
 
-# ÉVALUATIONS (L'épreuve simple) 
+# 2. CLASSE (Le Niveau, ex: L3-STAT)
+# C'est NOUVEAU, c'est ce qui manquait
+class ClasseCreate(BaseModel):
+    filiere_code: str # Pour savoir à quel domaine ça appartient
+    name: str         # ex: "Licence 3 Statistique"
+    code: str         # ex: "L3-STAT"
+    level: str        # ex: "L3"
+
+class ClasseResponse(ClasseCreate):
+    id: int
+    class Config:
+        from_attributes = True
+
+# 3. ÉVALUATIONS (Juste une Configuration simple)
 class EvaluationCreate(BaseModel):
     name: str             # ex: "Devoir 1"
-    type: EvalType        # DEVOIR
+    type: EvalType        # DEVOIR, EXAMEN...
 
 class EvaluationResponse(EvaluationCreate):
     id: int
@@ -23,13 +37,15 @@ class EvaluationResponse(EvaluationCreate):
     class Config:
         from_attributes = True
 
-# ECUE (Matière avec Config Poids)
+# 4. ECUE (Matière)
 class ECUECreate(BaseModel):
     ue_id: int
+    code: str             # ex: "STAT305" (important pour le mapping IA plus tard)
     name: str             
     coefficient: float    
-    competence_tag: Optional[str] = None
-    # Config ENSPD
+    credits: float        # Les ECUEs ont un coef appelé crédit
+    
+    # Configuration Poids (Logique ENSPD)
     weight_devoir: float = 0.0
     weight_tp: float = 0.0
     weight_examen: float = 1.0
@@ -40,18 +56,18 @@ class ECUEResponse(ECUECreate):
     class Config:
         from_attributes = True
 
-# UE
+# 5. UE (Unité d'Enseignement)
 class UECreate(BaseModel):
-    filiere_code: str
+    classe_code: str      # On lie une UE à la CLASSE
     code: str
     name: str
-    credits: float
+    # credits: float      # facultatif mais o n peut le demander, ou le calculer par la somme des ECUEs
 
 class UEResponse(BaseModel):
     id: int
     code: str
     name: str
-    credits: float
+    # credits: float
     ecues: List[ECUEResponse] = []
     class Config:
         from_attributes = True

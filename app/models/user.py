@@ -44,12 +44,12 @@ class Enrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     student_id = Column(Integer, ForeignKey("users.id"))
-    filiere_id = Column(Integer, ForeignKey("filieres.id"))
+    classe_id = Column(Integer, ForeignKey("classes.id"))
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"))
 
     # Sécurité : Un étudiant ne peut être inscrit qu'une seule fois dans une année
     __table_args__ = (UniqueConstraint('student_id', 'academic_year_id', name='_student_year_uc'),)
 
     student = relationship("User", back_populates="enrollments")
-    filiere = relationship("Filiere", back_populates="enrollments")
+    classe = relationship("app.models.academic.Classe", back_populates="enrollments")
     academic_year = relationship("AcademicYear", back_populates="enrollments")

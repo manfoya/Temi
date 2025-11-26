@@ -4,6 +4,7 @@ from app.core.database import SessionLocal, engine
 from app.models import user as user_model
 from app.core.security import get_password_hash
 from app.models import academic
+from app.models import pedagogy
 
 def init_db():
     db = SessionLocal()
