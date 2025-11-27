@@ -7,6 +7,7 @@ from app.models.user import User, Enrollment
 from app.models.academic import AcademicYear
 from app.models.pedagogy import Evaluation
 from app.schemas.grade import GradeCreate, GradeResponse
+from app.services.calculator import calculate_student_averages
 
 router = APIRouter()
 
@@ -62,4 +63,32 @@ def add_grade(grade_in: GradeCreate, db: Session = Depends(get_db)):
         evaluation_name=evaluation.name,
         value=new_grade.value
     )
+    
+@router.get("/bulletin/{matricule}")
+def get_student_bulletin(matricule: str, db: Session = Depends(get_db)):
+    """
+    Calcule et affiche le bulletin provisoire de l'étudiant
+    """
+    # 1. Récupérer l'étudiant
+    student = db.query(User).filter(User.matricule == matricule).first()
+    if not student:
+        raise HTTPException(404, detail="Étudiant introuvable")
+    
+    # 2. Récupérer l'année courante
+    current_year = db.query(AcademicYear).filter(AcademicYear.is_current == True).first()
+    if not current_year:
+        raise HTTPException(400, detail="Pas d'année active")
+
+    # 3. Récupérer l'inscription
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.student_id == student.id,
+        Enrollment.academic_year_id == current_year.id
+    ).first()
+    
+    if not enrollment:
+        raise HTTPException(404, detail="Étudiant non inscrit cette année")
+
+    # 4. Calculer
+    bulletin = calculate_student_averages(enrollment.id, db)
+    return bulletin
     
