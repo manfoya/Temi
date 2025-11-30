@@ -33,6 +33,12 @@ class User(Base):
     # Un User peut avoir plusieurs Inscriptions (une par an)
     enrollments = relationship("Enrollment", back_populates="student")
 
+    # On utilise une string dans ForeignKey pour éviter d'importer career.py ici et faire une boucle
+    domain_id = Column(Integer, ForeignKey("domains.id"), nullable=True)
+    
+    # Relation pour accéder aux infos du domaine
+    domain = relationship("app.models.career.Domain")
+
 
 class Enrollment(Base):
     """

@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from app.core.database import engine, Base
 # Il faut importer les modèles pour que SQLAlchemy les détecte lors du create_all
-from app.models import user, academic, pedagogy, grade
+from app.models import user, academic, pedagogy, grade, career
 from app.api.v1 import users, students, pedagogy, grades, auth
 
 

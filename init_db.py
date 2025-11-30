@@ -6,6 +6,7 @@ from app.core.security import get_password_hash
 from app.models import academic
 from app.models import pedagogy
 from app.models import grade
+from app.models import career
 
 def init_db():
     db = SessionLocal()
