@@ -155,22 +155,37 @@ def link_skills_to_domain(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
 ):
-    """Définir ce qu'il faut savoir pour faire ce métier"""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if not domain:
         raise HTTPException(404, detail="Domaine introuvable")
     
-    # On récupère les skills via leurs IDs
     skills = db.query(Skill).filter(Skill.id.in_(link.skill_ids)).all()
     
-    # On remplace ou on ajoute ? Ici on étend la liste
     domain.required_skills.extend(skills)
     db.commit()
     db.refresh(domain)
     return domain
 
+@router.delete("/domains/{domain_id}/skills/{skill_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unlink_skill_from_domain(
+    domain_id: int,
+    skill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if not domain:
+        raise HTTPException(404, detail="Domaine introuvable")
+    
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise HTTPException(404, detail="Compétence introuvable")
+    
+    if skill in domain.required_skills:
+        domain.required_skills.remove(skill)
+        db.commit()
+    
 # 3. LIAISON MATIÈRE -> COMPÉTENCE
-# C'est ici que l'Admin dit "Ce cours enseigne Python"
 
 @router.post("/ecues/{ecue_id}/skills", status_code=200)
 def link_skills_to_ecue(
@@ -179,15 +194,32 @@ def link_skills_to_ecue(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
 ):
-    """Taguer une matière avec des compétences"""
     ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
     if not ecue:
         raise HTTPException(404, detail="Matière (ECUE) introuvable")
     
     skills = db.query(Skill).filter(Skill.id.in_(link.skill_ids)).all()
     
-    # On ajoute les skills à la matière
     ecue.taught_skills.extend(skills)
     db.commit()
     
     return {"message": "Compétences associées avec succès", "skills_count": len(skills)}
+
+@router.delete("/ecues/{ecue_id}/skills/{skill_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unlink_skill_from_ecue(
+    ecue_id: int,
+    skill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
+    if not ecue:
+        raise HTTPException(404, detail="ECUE introuvable")
+    
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise HTTPException(404, detail="Compétence introuvable")
+    
+    if skill in ecue.taught_skills:
+        ecue.taught_skills.remove(skill)
+        db.commit()
