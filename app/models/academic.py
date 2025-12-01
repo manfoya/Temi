@@ -1,12 +1,14 @@
 # app/models/academic.py
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class AcademicYear(Base):
     __tablename__ = "academic_years"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)  # "2024-2025"
+    name = Column(String, unique=True, index=True)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
     is_current = Column(Boolean, default=False)
     enrollments = relationship("Enrollment", back_populates="academic_year")
 
