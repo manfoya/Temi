@@ -326,6 +326,76 @@ def create_ecue(
     db.refresh(new_ecue)
     return new_ecue
 
+@router.get("/ecues/{ecue_id}", response_model=ECUEResponse)
+def get_ecue(
+    ecue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
+    if not ecue:
+        raise HTTPException(404, detail="ECUE introuvable")
+    return ecue
+
+@router.put("/ecues/{ecue_id}", response_model=ECUEResponse)
+def update_ecue(
+    ecue_id: int,
+    ecue_in: ECUECreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
+    if not ecue:
+        raise HTTPException(404, detail="ECUE introuvable")
+    
+    # Vérifier somme poids
+    weight_projet = getattr(ecue_in, 'weight_projet', 0.0)
+    total_weight = ecue_in.weight_devoir + ecue_in.weight_tp + ecue_in.weight_examen + weight_projet
+    
+    if not (0.99 <= total_weight <= 1.01):
+        raise HTTPException(
+            400,
+            detail=f"La somme des poids doit faire 1.0 (Actuellement: {total_weight})"
+        )
+    
+    # Vérifier UE
+    ue = db.query(UE).filter(UE.id == ecue_in.ue_id).first()
+    if not ue:
+        raise HTTPException(404, detail="UE introuvable")
+    
+    # Mise à jour
+    ecue.ue_id = ecue_in.ue_id
+    ecue.code = ecue_in.code
+    ecue.name = ecue_in.name
+    ecue.coefficient = ecue_in.coefficient
+    ecue.credits = ecue_in.credits
+    ecue.weight_devoir = ecue_in.weight_devoir
+    ecue.weight_tp = ecue_in.weight_tp
+    ecue.weight_examen = ecue_in.weight_examen
+    db.commit()
+    db.refresh(ecue)
+    return ecue
+
+@router.delete("/ecues/{ecue_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_ecue(
+    ecue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
+    if not ecue:
+        raise HTTPException(404, detail="ECUE introuvable")
+    
+    # Vérifier absence évaluations
+    if ecue.evaluations:
+        raise HTTPException(
+            400,
+            detail=f"Impossible de supprimer: {len(ecue.evaluations)} évaluation(s) liée(s)"
+        )
+    
+    db.delete(ecue)
+    db.commit()
+
 # 5. GESTION DES ÉVALUATIONS 
 @router.post("/ecues/{ecue_id}/evaluations", response_model=EvaluationResponse)
 def add_evaluation(
