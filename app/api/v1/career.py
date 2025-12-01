@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.security import require_roles
+from app.models.user import User, UserRole
 from app.models.career import Skill, Domain
 from app.models.pedagogy import ECUE
 from app.schemas.career import (
@@ -17,7 +19,11 @@ router = APIRouter()
 # 1. GESTION DES SKILLS (La bibliothèque)
 
 @router.post("/skills", response_model=SkillResponse)
-def create_skill(skill: SkillCreate, db: Session = Depends(get_db)):
+def create_skill(
+    skill: SkillCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     """Ajouter une compétence à la liste globale (ex: Python)"""
     exists = db.query(Skill).filter(Skill.name == skill.name).first()
     if exists:
@@ -37,7 +43,11 @@ def list_skills(db: Session = Depends(get_db)):
 # 2. GESTION DES DOMAINES (Métiers)
 
 @router.post("/domains", response_model=DomainResponse)
-def create_domain(domain: DomainCreate, db: Session = Depends(get_db)):
+def create_domain(
+    domain: DomainCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     """Créer un métier cible (ex: Data Scientist)"""
     new_domain = Domain(name=domain.name, description=domain.description)
     db.add(new_domain)
@@ -46,7 +56,12 @@ def create_domain(domain: DomainCreate, db: Session = Depends(get_db)):
     return new_domain
 
 @router.post("/domains/{domain_id}/skills", response_model=DomainResponse)
-def link_skills_to_domain(domain_id: int, link: LinkSkillToDomain, db: Session = Depends(get_db)):
+def link_skills_to_domain(
+    domain_id: int, 
+    link: LinkSkillToDomain, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     """Définir ce qu'il faut savoir pour faire ce métier"""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if not domain:
@@ -65,7 +80,12 @@ def link_skills_to_domain(domain_id: int, link: LinkSkillToDomain, db: Session =
 # C'est ici que l'Admin dit "Ce cours enseigne Python"
 
 @router.post("/ecues/{ecue_id}/skills", status_code=200)
-def link_skills_to_ecue(ecue_id: int, link: LinkSkillToECUE, db: Session = Depends(get_db)):
+def link_skills_to_ecue(
+    ecue_id: int, 
+    link: LinkSkillToECUE, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     """Taguer une matière avec des compétences"""
     ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
     if not ecue:
