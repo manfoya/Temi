@@ -7,7 +7,7 @@ from app.models.grade import Grade
 from app.models.user import User, Enrollment, UserRole
 from app.models.academic import AcademicYear
 from app.models.pedagogy import Evaluation
-from app.schemas.grade import GradeCreate, GradeResponse
+from app.schemas.grade import GradeCreate, GradeResponse, GradeUpdate
 from app.services.calculator import calculate_student_averages
 from app.services.simulator import simulate_grades
 from app.services.ai_advisor import diagnostic_student
@@ -81,6 +81,68 @@ def add_grade(
         ai_diagnostic=ai_diagnostic
     )
     
+@router.get("/evaluation/{evaluation_id}")
+def get_grades_by_evaluation(
+    evaluation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    # Vérifier évaluation
+    evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
+    if not evaluation:
+        raise HTTPException(404, detail="Évaluation introuvable")
+    
+    # Récupérer toutes les notes
+    grades = db.query(Grade).filter(Grade.evaluation_id == evaluation_id).all()
+    
+    # Construire résultats
+    results = []
+    for grade in grades:
+        enrollment = db.query(Enrollment).filter(Enrollment.id == grade.enrollment_id).first()
+        student = db.query(User).filter(User.id == enrollment.student_id).first()
+        results.append({
+            "id": grade.id,
+            "student_matricule": student.matricule,
+            "student_name": student.full_name,
+            "value": grade.value
+        })
+    
+    return results
+
+@router.put("/{grade_id}")
+def update_grade(
+    grade_id: int,
+    grade_in: GradeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    # Vérifier note
+    grade = db.query(Grade).filter(Grade.id == grade_id).first()
+    if not grade:
+        raise HTTPException(404, detail="Note introuvable")
+    
+    # Mise à jour
+    grade.value = grade_in.value
+    db.commit()
+    db.refresh(grade)
+    
+    return {"message": "Note modifiée avec succès"}
+
+@router.delete("/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_grade(
+    grade_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    # Vérifier note
+    grade = db.query(Grade).filter(Grade.id == grade_id).first()
+    if not grade:
+        raise HTTPException(404, detail="Note introuvable")
+    
+    # Suppression
+    db.delete(grade)
+    db.commit()
+
 @router.get("/bulletin/{matricule}")
 def get_student_bulletin(
     matricule: str, 

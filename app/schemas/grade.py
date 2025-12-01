@@ -13,6 +13,15 @@ class GradeCreate(BaseModel):
             raise ValueError('La note doit être comprise entre 0 et 20')
         return v
 
+class GradeUpdate(BaseModel):
+    value: float
+
+    @validator('value')
+    def validate_note(cls, v):
+        if not (0 <= v <= 20):
+            raise ValueError('La note doit être comprise entre 0 et 20')
+        return v
+
 class GradeResponse(BaseModel):
     id: int
     student_name: str
