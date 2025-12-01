@@ -68,7 +68,33 @@ def add_grade(
     ai_diagnostic = None
     if student.domain:  # Seulement si l'étudiant a choisi un métier cible
         try:
+            from app.models.notification import Notification, DiagnosticHistory
+            
+            # Diagnostic
             ai_diagnostic = diagnostic_student(student.matricule, db)
+            
+            # Simulation automatique
+            simulation = simulate_grades(student.matricule, target=14.0, db=db)
+            
+            # Stocker en DB
+            history = DiagnosticHistory(
+                student_id=student.id,
+                diagnostic_data=ai_diagnostic,
+                simulation_data=simulation
+            )
+            db.add(history)
+            
+            # Créer notification
+            notif = Notification(
+                user_id=student.id,
+                type="ia_diagnostic",
+                title="Nouveau diagnostic IA disponible",
+                message=f"Votre profil a été analysé suite à votre note en {evaluation.name}",
+                link="/student/ai-advisor"
+            )
+            db.add(notif)
+            db.commit()
+            
         except Exception as e:
             # L'échec de l'IA ne doit pas bloquer l'ajout de la note
             print(f"Erreur diagnostic IA : {e}")
