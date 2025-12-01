@@ -1,8 +1,8 @@
 # app/main.py
 from fastapi import FastAPI
 from app.core.database import engine, Base
-from app.models import user, academic, pedagogy, grade, career
-from app.api.v1 import users, students, pedagogy, grades, auth, career, advisor, academic as academic_routes
+from app.models import user, academic, pedagogy, grade, career, notification
+from app.api.v1 import users, students, pedagogy, grades, auth, career, advisor, academic as academic_routes, notifications
 
 Base.metadata.create_all(bind=engine)
 
@@ -16,6 +16,7 @@ app.include_router(grades.router, prefix="/api/v1/grades", tags=["Notes"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentification"])
 app.include_router(career.router, prefix="/api/v1/career", tags=["Carrière & IA"])
 app.include_router(advisor.router, prefix="/api/v1/advisor", tags=["IA & Coaching"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 
 @app.get("/")
 def read_root():
