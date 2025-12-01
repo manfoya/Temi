@@ -4,3 +4,9 @@ __pycache__/
 *.db
 .env
 .DS_Store
+
+# Documentation interne (contient des infos sensibles)
+roles_permissions.md
+FEUILLE_DE_ROUTE.md
+CORRECTIONS_ROLES.md
+.github/
