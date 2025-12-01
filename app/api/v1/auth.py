@@ -1,6 +1,7 @@
 # app/api/v1/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token, get_password_hash, get_current_user
@@ -9,7 +10,7 @@ from app.schemas.auth import LoginRequest, Token, AccountActivation
 
 router = APIRouter()
 
-# 1. LOGIN (Admin & Étudiant déjà activé)
+"""# 1. LOGIN (Admin & Étudiant déjà activé)
 @router.post("/login", response_model=Token)
 def login(form_data: LoginRequest, db: Session = Depends(get_db)):
     # On cherche l'utilisateur par matricule
@@ -28,6 +29,42 @@ def login(form_data: LoginRequest, db: Session = Depends(get_db)):
     # Création du token
     access_token = create_access_token(data={"sub": user.matricule, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+"""
+# 1. LOGIN (Compatible avec le cadenas Swagger)
+@router.post("/login", response_model=Token)
+def login(
+    #2. REMPLACE 'form_data: LoginRequest' PAR CECI :
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db)
+):
+    #on compare form_data.username avec ton User.matricule
+    user = db.query(User).filter(User.matricule == form_data.username).first()
+    
+    # Vérifications
+    if not user:
+        # Pour la sécurité, on utilise souvent 401 Unauthorized au lieu de 400
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Matricule incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Compte non activé. Veuillez l'activer d'abord.")
+
+    # Création du token
+    access_token = create_access_token(data={"sub": user.matricule, "role": user.role})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 # 2. ACTIVATION COMPTE ÉTUDIANT (Première fois)
 @router.post("/activate", status_code=status.HTTP_200_OK)
@@ -59,8 +96,8 @@ def activate_account(activation_data: AccountActivation, db: Session = Depends(g
 def get_me(current_user: User = Depends(get_current_user)):
     return {
         "matricule": current_user.matricule,
-        "nom": current_user.nom,
-        "prenom": current_user.prenom,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
         "role": current_user.role,
         "is_active": current_user.is_active
     }
