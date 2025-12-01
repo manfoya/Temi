@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.security import require_roles
+from app.models.user import User, UserRole
 from app.models.academic import Filiere, Classe
 from app.models.pedagogy import UE, ECUE, Evaluation
 from app.schemas.pedagogy import (
@@ -18,7 +20,11 @@ router = APIRouter()
 
 # 1. GESTION DES FILIÈRES
 @router.post("/filieres", response_model=FiliereResponse, status_code=status.HTTP_201_CREATED)
-def create_filiere(filiere: FiliereCreate, db: Session = Depends(get_db)):
+def create_filiere(
+    filiere: FiliereCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     existing = db.query(Filiere).filter(Filiere.code == filiere.code).first()
     if existing:
         raise HTTPException(400, detail="Ce code de filière existe déjà")
@@ -35,7 +41,11 @@ def list_filieres(db: Session = Depends(get_db)):
 
 # 2. GESTION DES CLASSES
 @router.post("/classes", response_model=ClasseResponse, status_code=status.HTTP_201_CREATED)
-def create_classe(classe_in: ClasseCreate, db: Session = Depends(get_db)):
+def create_classe(
+    classe_in: ClasseCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     filiere = db.query(Filiere).filter(Filiere.code == classe_in.filiere_code).first()
     if not filiere:
         raise HTTPException(404, detail=f"Filière {classe_in.filiere_code} introuvable")
@@ -76,7 +86,11 @@ def list_classes(filiere_code: str = None, db: Session = Depends(get_db)):
 
 # 3. GESTION DES UEs
 @router.post("/ues", response_model=UEResponse, status_code=status.HTTP_201_CREATED)
-def create_ue(ue_in: UECreate, db: Session = Depends(get_db)):
+def create_ue(
+    ue_in: UECreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     classe = db.query(Classe).filter(Classe.code == ue_in.classe_code).first()
     if not classe:
         raise HTTPException(404, detail=f"Classe {ue_in.classe_code} introuvable")
@@ -113,7 +127,11 @@ def list_ues(classe_code: str = None, db: Session = Depends(get_db)):
 
 # 4. GESTION DES ECUEs
 @router.post("/ecues", response_model=ECUEResponse, status_code=status.HTTP_201_CREATED)
-def create_ecue(ecue_in: ECUECreate, db: Session = Depends(get_db)):
+def create_ecue(
+    ecue_in: ECUECreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     weight_projet = getattr(ecue_in, 'weight_projet', 0.0) 
     total_weight = ecue_in.weight_devoir + ecue_in.weight_tp + ecue_in.weight_examen + weight_projet
     
@@ -144,7 +162,12 @@ def create_ecue(ecue_in: ECUECreate, db: Session = Depends(get_db)):
 
 # 5. GESTION DES ÉVALUATIONS 
 @router.post("/ecues/{ecue_id}/evaluations", response_model=EvaluationResponse)
-def add_evaluation(ecue_id: int, eval_in: EvaluationCreate, db: Session = Depends(get_db)):
+def add_evaluation(
+    ecue_id: int, 
+    eval_in: EvaluationCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
     ecue = db.query(ECUE).filter(ECUE.id == ecue_id).first()
     if not ecue:
         raise HTTPException(404, detail="ECUE introuvable")
