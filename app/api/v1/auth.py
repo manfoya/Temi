@@ -64,3 +64,10 @@ def get_me(current_user: User = Depends(get_current_user)):
         "role": current_user.role,
         "is_active": current_user.is_active
     }
+
+# 4. RENOUVELLEMENT TOKEN
+@router.post("/refresh", response_model=Token)
+def refresh_token(current_user: User = Depends(get_current_user)):
+    # Créer un nouveau token avec les infos actuelles
+    new_token = create_access_token(data={"sub": current_user.matricule, "role": current_user.role})
+    return {"access_token": new_token, "token_type": "bearer"}
