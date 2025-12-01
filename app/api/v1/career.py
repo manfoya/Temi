@@ -94,12 +94,59 @@ def create_domain(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
 ):
-    """Créer un métier cible (ex: Data Scientist)"""
     new_domain = Domain(name=domain.name, description=domain.description)
     db.add(new_domain)
     db.commit()
     db.refresh(new_domain)
     return new_domain
+
+@router.get("/domains/{domain_id}", response_model=DomainResponse)
+def get_domain(
+    domain_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if not domain:
+        raise HTTPException(404, detail="Domaine introuvable")
+    return domain
+
+@router.put("/domains/{domain_id}", response_model=DomainResponse)
+def update_domain(
+    domain_id: int,
+    domain_in: DomainCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if not domain:
+        raise HTTPException(404, detail="Domaine introuvable")
+    
+    domain.name = domain_in.name
+    domain.description = domain_in.description
+    db.commit()
+    db.refresh(domain)
+    return domain
+
+@router.delete("/domains/{domain_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_domain(
+    domain_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if not domain:
+        raise HTTPException(404, detail="Domaine introuvable")
+    
+    # Vérifier absence utilisateurs ciblant ce domaine
+    if domain.students:
+        raise HTTPException(
+            400,
+            detail=f"Impossible de supprimer: {len(domain.students)} étudiant(s) cible(nt) ce domaine"
+        )
+    
+    db.delete(domain)
+    db.commit()
 
 @router.post("/domains/{domain_id}/skills", response_model=DomainResponse)
 def link_skills_to_domain(
