@@ -9,6 +9,7 @@ from app.models.pedagogy import Evaluation
 from app.schemas.grade import GradeCreate, GradeResponse
 from app.services.calculator import calculate_student_averages
 from app.services.simulator import simulate_grades
+from app.services.ai_advisor import diagnostic_student
 
 router = APIRouter()
 
@@ -58,11 +59,21 @@ def add_grade(grade_in: GradeCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_grade)
 
+    # 7. DÉCLENCHEMENT AUTOMATIQUE DE L'IA
+    ai_diagnostic = None
+    if student.domain:  # Seulement si l'étudiant a choisi un métier cible
+        try:
+            ai_diagnostic = diagnostic_student(student.matricule, db)
+        except Exception as e:
+            # L'échec de l'IA ne doit pas bloquer l'ajout de la note
+            print(f"Erreur diagnostic IA : {e}")
+
     return GradeResponse(
         id=new_grade.id,
         student_name=student.full_name,
         evaluation_name=evaluation.name,
-        value=new_grade.value
+        value=new_grade.value,
+        ai_diagnostic=ai_diagnostic
     )
     
 @router.get("/bulletin/{matricule}")

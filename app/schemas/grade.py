@@ -1,5 +1,6 @@
 # app/schemas/grade.py
 from pydantic import BaseModel, validator
+from typing import Optional, Any
 
 class GradeCreate(BaseModel):
     student_matricule: str # Plus facile pour l'admin que de chercher l'ID enrollment
@@ -17,6 +18,7 @@ class GradeResponse(BaseModel):
     student_name: str
     evaluation_name: str
     value: float
+    ai_diagnostic: Optional[Any] = None  # Diagnostic IA automatique
     
     class Config:
         from_attributes = True
