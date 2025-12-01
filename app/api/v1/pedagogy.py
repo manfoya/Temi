@@ -111,7 +111,6 @@ def create_classe(
     db.commit()
     db.refresh(new_classe)
     
-    # Injection manuelle pour Pydantic
     new_classe.filiere_code = filiere.code
     
     return new_classe
@@ -154,10 +153,12 @@ def update_classe(
     if not classe:
         raise HTTPException(404, detail="Classe introuvable")
     
+    # Vérifier filière
     filiere = db.query(Filiere).filter(Filiere.code == classe_in.filiere_code).first()
     if not filiere:
         raise HTTPException(404, detail=f"Filière {classe_in.filiere_code} introuvable")
     
+    # Mise à jour
     classe.filiere_id = filiere.id
     classe.name = classe_in.name
     classe.code = classe_in.code
@@ -178,6 +179,7 @@ def delete_classe(
     if not classe:
         raise HTTPException(404, detail="Classe introuvable")
     
+    # Vérifier absence étudiants
     if classe.enrollments:
         raise HTTPException(
             400,
@@ -224,11 +226,70 @@ def list_ues(classe_code: str = None, db: Session = Depends(get_db)):
     
     ues = query.all()
     
-    # Injection manuelle pour Pydantic
     for u in ues:
         u.classe_code = u.classe.code
         
     return ues
+
+@router.get("/ues/{ue_id}", response_model=UEResponse)
+def get_ue(
+    ue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    ue = db.query(UE).filter(UE.id == ue_id).first()
+    if not ue:
+        raise HTTPException(404, detail="UE introuvable")
+    
+    ue.classe_code = ue.classe.code
+    return ue
+
+@router.put("/ues/{ue_id}", response_model=UEResponse)
+def update_ue(
+    ue_id: int,
+    ue_in: UECreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    ue = db.query(UE).filter(UE.id == ue_id).first()
+    if not ue:
+        raise HTTPException(404, detail="UE introuvable")
+    
+    # Vérifier classe
+    classe = db.query(Classe).filter(Classe.code == ue_in.classe_code).first()
+    if not classe:
+        raise HTTPException(404, detail=f"Classe {ue_in.classe_code} introuvable")
+    
+    # Mise à jour
+    ue.classe_id = classe.id
+    ue.code = ue_in.code
+    ue.name = ue_in.name
+    ue.credits = ue_in.credits
+    db.commit()
+    db.refresh(ue)
+    
+    ue.classe_code = classe.code
+    return ue
+
+@router.delete("/ues/{ue_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_ue(
+    ue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    ue = db.query(UE).filter(UE.id == ue_id).first()
+    if not ue:
+        raise HTTPException(404, detail="UE introuvable")
+    
+    # Vérifier absence ECUE
+    if ue.ecues:
+        raise HTTPException(
+            400,
+            detail=f"Impossible de supprimer: {len(ue.ecues)} ECUE(s) liée(s)"
+        )
+    
+    db.delete(ue)
+    db.commit()
 
 # 4. GESTION DES ECUEs
 @router.post("/ecues", response_model=ECUEResponse, status_code=status.HTTP_201_CREATED)
