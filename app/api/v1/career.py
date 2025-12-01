@@ -37,8 +37,54 @@ def create_skill(
 
 @router.get("/skills", response_model=List[SkillResponse])
 def list_skills(db: Session = Depends(get_db)):
-    """Récupérer la liste pour le menu déroulant"""
     return db.query(Skill).all()
+
+@router.get("/skills/{skill_id}", response_model=SkillResponse)
+def get_skill(
+    skill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise HTTPException(404, detail="Compétence introuvable")
+    return skill
+
+@router.put("/skills/{skill_id}", response_model=SkillResponse)
+def update_skill(
+    skill_id: int,
+    skill_in: SkillCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise HTTPException(404, detail="Compétence introuvable")
+    
+    skill.name = skill_in.name
+    db.commit()
+    db.refresh(skill)
+    return skill
+
+@router.delete("/skills/{skill_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_skill(
+    skill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise HTTPException(404, detail="Compétence introuvable")
+    
+    # Vérifier absence liens
+    if skill.domains or skill.ecues:
+        raise HTTPException(
+            400,
+            detail="Impossible de supprimer: compétence liée à des domaines ou ECUE"
+        )
+    
+    db.delete(skill)
+    db.commit()
 
 # 2. GESTION DES DOMAINES (Métiers)
 
