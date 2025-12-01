@@ -125,9 +125,67 @@ def list_classes(filiere_code: str = None, db: Session = Depends(get_db)):
     
     classes = query.all()
     
-    # Injection manuelle pour Pydantic
     for c in classes:
         c.filiere_code = c.filiere.code
+        
+    return classes
+
+@router.get("/classes/{classe_id}", response_model=ClasseResponse)
+def get_classe(
+    classe_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    classe = db.query(Classe).filter(Classe.id == classe_id).first()
+    if not classe:
+        raise HTTPException(404, detail="Classe introuvable")
+    
+    classe.filiere_code = classe.filiere.code
+    return classe
+
+@router.put("/classes/{classe_id}", response_model=ClasseResponse)
+def update_classe(
+    classe_id: int,
+    classe_in: ClasseCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    classe = db.query(Classe).filter(Classe.id == classe_id).first()
+    if not classe:
+        raise HTTPException(404, detail="Classe introuvable")
+    
+    filiere = db.query(Filiere).filter(Filiere.code == classe_in.filiere_code).first()
+    if not filiere:
+        raise HTTPException(404, detail=f"Filière {classe_in.filiere_code} introuvable")
+    
+    classe.filiere_id = filiere.id
+    classe.name = classe_in.name
+    classe.code = classe_in.code
+    classe.level = classe_in.level
+    db.commit()
+    db.refresh(classe)
+    
+    classe.filiere_code = filiere.code
+    return classe
+
+@router.delete("/classes/{classe_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_classe(
+    classe_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    classe = db.query(Classe).filter(Classe.id == classe_id).first()
+    if not classe:
+        raise HTTPException(404, detail="Classe introuvable")
+    
+    if classe.enrollments:
+        raise HTTPException(
+            400,
+            detail=f"Impossible de supprimer: {len(classe.enrollments)} étudiant(s) inscrit(s)"
+        )
+    
+    db.delete(classe)
+    db.commit()
         
     return classes
 
