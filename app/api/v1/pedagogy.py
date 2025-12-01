@@ -417,3 +417,52 @@ def add_evaluation(
     db.commit()
     db.refresh(new_eval)
     return new_eval
+
+@router.get("/evaluations/{eval_id}", response_model=EvaluationResponse)
+def get_evaluation(
+    eval_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    evaluation = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+    if not evaluation:
+        raise HTTPException(404, detail="Évaluation introuvable")
+    return evaluation
+
+@router.put("/evaluations/{eval_id}", response_model=EvaluationResponse)
+def update_evaluation(
+    eval_id: int,
+    eval_in: EvaluationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    evaluation = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+    if not evaluation:
+        raise HTTPException(404, detail="Évaluation introuvable")
+    
+    # Mise à jour
+    evaluation.name = eval_in.name
+    evaluation.type = eval_in.type
+    db.commit()
+    db.refresh(evaluation)
+    return evaluation
+
+@router.delete("/evaluations/{eval_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_evaluation(
+    eval_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    evaluation = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+    if not evaluation:
+        raise HTTPException(404, detail="Évaluation introuvable")
+    
+    # Vérifier absence notes
+    if evaluation.grades:
+        raise HTTPException(
+            400,
+            detail=f"Impossible de supprimer: {len(evaluation.grades)} note(s) liée(s)"
+        )
+    
+    db.delete(evaluation)
+    db.commit()
