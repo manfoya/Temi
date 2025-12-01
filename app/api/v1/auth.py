@@ -1,10 +1,9 @@
 # app/api/v1/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from fastapi.security import OAuth2PasswordBearer
 
 from app.core.database import get_db
-from app.core.security import verify_password, create_access_token, get_password_hash
+from app.core.security import verify_password, create_access_token, get_password_hash, get_current_user
 from app.models.user import User
 from app.schemas.auth import LoginRequest, Token, AccountActivation
 
@@ -49,8 +48,19 @@ def activate_account(activation_data: AccountActivation, db: Session = Depends(g
     # Activation
     user.hashed_password = get_password_hash(activation_data.new_password)
     user.is_active = True
-    user.activation_secret = None # On vide le secret par sécurité (optionnel)
+    user.activation_secret = None
     
     db.commit()
     
     return {"message": "Compte activé avec succès ! Vous pouvez vous connecter."}
+
+# 3. PROFIL UTILISATEUR CONNECTÉ
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "matricule": current_user.matricule,
+        "nom": current_user.nom,
+        "prenom": current_user.prenom,
+        "role": current_user.role,
+        "is_active": current_user.is_active
+    }
