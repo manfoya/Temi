@@ -4,7 +4,8 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.models.user import User
-from app.models.pedagogy import ECUE, EvalType, Grade
+from app.models.pedagogy import ECUE, EvalType
+from app.models.grade import Grade
 from app.models.academic import AcademicYear
 
 # Configurer Gemini
