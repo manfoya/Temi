@@ -8,6 +8,7 @@ from app.models.academic import AcademicYear
 from app.models.pedagogy import Evaluation
 from app.schemas.grade import GradeCreate, GradeResponse
 from app.services.calculator import calculate_student_averages
+from app.services.simulator import simulate_grades
 
 router = APIRouter()
 
@@ -91,4 +92,11 @@ def get_student_bulletin(matricule: str, db: Session = Depends(get_db)):
     # 4. Calculer
     bulletin = calculate_student_averages(enrollment.id, db)
     return bulletin
-    
+
+
+@router.get("/simulation/{matricule}")
+def simulate_target(matricule: str, target: float = 15.0, db: Session = Depends(get_db)):
+    """
+    Simulateur : 'Combien je dois avoir aux examens pour avoir 15 ?'
+    """
+    return simulate_grades(matricule, target, db)
