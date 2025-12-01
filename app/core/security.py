@@ -20,8 +20,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Transforme un mot de passe en hash illisible"""
-def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -57,3 +55,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     
     return user
+
+def require_roles(*allowed_roles: str):
+    def check(current_user = Depends(get_current_user)):
+        from app.models.user import User
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Accès refusé. Rôles autorisés: {', '.join(allowed_roles)}"
+            )
+        return current_user
+    return check
