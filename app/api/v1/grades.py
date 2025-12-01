@@ -2,8 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.security import require_roles
 from app.models.grade import Grade
-from app.models.user import User, Enrollment
+from app.models.user import User, Enrollment, UserRole
 from app.models.academic import AcademicYear
 from app.models.pedagogy import Evaluation
 from app.schemas.grade import GradeCreate, GradeResponse
@@ -14,7 +15,11 @@ from app.services.ai_advisor import diagnostic_student
 router = APIRouter()
 
 @router.post("/", response_model=GradeResponse, status_code=status.HTTP_201_CREATED)
-def add_grade(grade_in: GradeCreate, db: Session = Depends(get_db)):
+def add_grade(
+    grade_in: GradeCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
     # 1. Trouver l'année courante
     current_year = db.query(AcademicYear).filter(AcademicYear.is_current == True).first()
     if not current_year:
@@ -77,10 +82,16 @@ def add_grade(grade_in: GradeCreate, db: Session = Depends(get_db)):
     )
     
 @router.get("/bulletin/{matricule}")
-def get_student_bulletin(matricule: str, db: Session = Depends(get_db)):
-    """
-    Calcule et affiche le bulletin provisoire de l'étudiant
-    """
+def get_student_bulletin(
+    matricule: str, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value, UserRole.STUDENT.value))
+):
+    from app.core.security import check_own_resource
+    
+    # Vérifier qu'un étudiant accède uniquement à son bulletin
+    check_own_resource(current_user, matricule)
+    
     # 1. Récupérer l'étudiant
     student = db.query(User).filter(User.matricule == matricule).first()
     if not student:
@@ -106,8 +117,15 @@ def get_student_bulletin(matricule: str, db: Session = Depends(get_db)):
 
 
 @router.get("/simulation/{matricule}")
-def simulate_target(matricule: str, target: float = 15.0, db: Session = Depends(get_db)):
-    """
-    Simulateur : 'Combien je dois avoir aux examens pour avoir 15 ?'
-    """
+def simulate_target(
+    matricule: str, 
+    target: float = 15.0, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value, UserRole.STUDENT.value))
+):
+    from app.core.security import check_own_resource
+    
+    # Vérifier qu'un étudiant accède uniquement à sa simulation
+    check_own_resource(current_user, matricule)
+    
     return simulate_grades(matricule, target, db)
