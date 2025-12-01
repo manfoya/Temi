@@ -66,3 +66,12 @@ def require_roles(*allowed_roles: str):
             )
         return current_user
     return check
+
+def check_own_resource(current_user, requested_matricule: str):
+    # Vérifier qu'un étudiant accède uniquement à ses propres données
+    if current_user.role == "STUDENT":
+        if current_user.matricule != requested_matricule:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Vous ne pouvez accéder qu'à vos propres données"
+            )
