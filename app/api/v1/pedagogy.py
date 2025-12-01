@@ -39,6 +39,53 @@ def create_filiere(
 def list_filieres(db: Session = Depends(get_db)):
     return db.query(Filiere).all()
 
+@router.get("/filieres/{filiere_id}", response_model=FiliereResponse)
+def get_filiere(
+    filiere_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value))
+):
+    filiere = db.query(Filiere).filter(Filiere.id == filiere_id).first()
+    if not filiere:
+        raise HTTPException(404, detail="Filière introuvable")
+    return filiere
+
+@router.put("/filieres/{filiere_id}", response_model=FiliereResponse)
+def update_filiere(
+    filiere_id: int,
+    filiere_in: FiliereCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    filiere = db.query(Filiere).filter(Filiere.id == filiere_id).first()
+    if not filiere:
+        raise HTTPException(404, detail="Filière introuvable")
+    
+    filiere.name = filiere_in.name
+    filiere.code = filiere_in.code
+    db.commit()
+    db.refresh(filiere)
+    return filiere
+
+@router.delete("/filieres/{filiere_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_filiere(
+    filiere_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
+    filiere = db.query(Filiere).filter(Filiere.id == filiere_id).first()
+    if not filiere:
+        raise HTTPException(404, detail="Filière introuvable")
+    
+    if filiere.classes:
+        raise HTTPException(
+            400,
+            detail=f"Impossible de supprimer: {len(filiere.classes)} classe(s) liée(s)"
+        )
+    
+    db.delete(filiere)
+    db.commit()
+
 # 2. GESTION DES CLASSES
 @router.post("/classes", response_model=ClasseResponse, status_code=status.HTTP_201_CREATED)
 def create_classe(
