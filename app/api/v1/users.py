@@ -2,17 +2,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.security import get_password_hash, require_roles
 from app.models.user import User, UserRole
 from app.schemas.user import AdminCreate, UserResponse
-from app.core.security import get_password_hash
 
 router = APIRouter()
 
 @router.post("/admins", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_admin(user_in: AdminCreate, db: Session = Depends(get_db)):
-    """
-    Permet au SuperAdmin de créer un administrateur Scolarité.
-    """
+def create_admin(
+    user_in: AdminCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN.value))
+):
     # 1. Vérifier si le matricule existe déjà
     user_exists = db.query(User).filter(User.matricule == user_in.matricule).first()
     if user_exists:
@@ -35,9 +36,9 @@ def create_admin(user_in: AdminCreate, db: Session = Depends(get_db)):
         matricule=user_in.matricule,
         full_name=user_in.full_name,
         email=user_in.email,
-        hashed_password=get_password_hash(user_in.password), # On hache ici
-        role=UserRole.ADMIN, # On force le rôle ADMIN
-        is_active=True # Un admin créé par le SuperAdmin est actif direct
+        hashed_password=get_password_hash(user_in.password),
+        role=UserRole.ADMIN,
+        is_active=True
     )
 
     # 4. Sauvegarde
